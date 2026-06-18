@@ -1,0 +1,13 @@
+# Entorno virtual — se reconstruye desde requirements.txt
+venv/
+
+# Caché de Python
+__pycache__/
+*.pyc
+
+# Secretos y variables de entorno
+.env
+
+# Archivos del sistema y del editor
+.DS_Store
+.vscode/
