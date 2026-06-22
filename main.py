@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import httpx
 import time
+from fastapi.responses import FileResponse
 
 app = FastAPI()
 
@@ -14,6 +15,10 @@ class ProxyRequest(BaseModel):
 
 @app.get("/")
 def read_root():
+    return FileResponse("static/index.html")
+
+@app.get("/api/health")
+def health():
     return {"mensaje": "API Explorer está vivo"}
 
 @app.post("/api/proxy")

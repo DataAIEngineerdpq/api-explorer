@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Explorer</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+      background: #0d1117;
+      color: #e6edf3;
+    }
+
+    h1 { font-size: 20px; }
+
+    .request-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    #method {
+      background: #1c2128;
+      color: #e6edf3;
+      border: 1px solid #3d444d;
+      border-radius: 6px;
+      padding: 0 12px;
+      font-weight: bold;
+    }
+
+    #url {
+      flex: 1;
+      background: #1c2128;
+      color: #e6edf3;
+      border: 1px solid #3d444d;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-family: monospace;
+    }
+
+    #send {
+      background: #e8a33d;
+      color: #1a1303;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 20px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    #response {
+      background: #161b22;
+      border: 1px solid #2d333b;
+      border-radius: 6px;
+      padding: 16px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-family: monospace;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <h1>API Explorer</h1>
+
+  <div class="request-bar">
+    <select id="method">
+      <option value="GET">GET</option>
+      <option value="POST">POST</option>
+      <option value="PUT">PUT</option>
+      <option value="PATCH">PATCH</option>
+      <option value="DELETE">DELETE</option>
+    </select>
+
+    <input type="text" id="url" placeholder="https://api.github.com/repos/python/cpython">
+
+    <button id="send">Enviar</button>
+  </div>
+
+  <pre id="response">La respuesta aparecerá aquí…</pre>
+  <script>
+    const sendButton = document.getElementById("send");
+    const responseBox = document.getElementById("response");
+
+    sendButton.addEventListener("click", async () => {
+      const method = document.getElementById("method").value;
+      const url = document.getElementById("url").value;
+
+      if (!url) {
+        responseBox.textContent = "Escribe una URL primero.";
+        return;
+      }
+
+      responseBox.textContent = "Enviando…";
+
+      try {
+        const respuesta = await fetch("/api/proxy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ method: method, url: url }),
+        });
+
+        const datos = await respuesta.json();
+        responseBox.textContent = JSON.stringify(datos, null, 2);
+      } catch (error) {
+        responseBox.textContent = "Error al contactar el backend: " + error;
+      }
+    });
+  </script>
+</body>
+</html>
