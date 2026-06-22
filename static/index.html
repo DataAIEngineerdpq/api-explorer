@@ -62,6 +62,30 @@
       font-family: monospace;
       font-size: 13px;
     }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+      font-family: monospace;
+      font-size: 13px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 8px 12px;
+      border-bottom: 1px solid #2d333b;
+    }
+
+    th {
+      color: #8b949e;
+      font-weight: 600;
+      border-bottom: 2px solid #3d444d;
+    }
+
+    td {
+      color: #e6edf3;
+      vertical-align: top;
+    }
   </style>
 </head>
 <body>
@@ -82,9 +106,22 @@
   </div>
 
   <pre id="response">La respuesta aparecerá aquí…</pre>
+  <table id="fields-table" style="display:none">
+    <thead>
+      <tr>
+        <th>Campo</th>
+        <th>Tipo</th>
+        <th>Valor</th>
+      </tr>
+    </thead>
+    <tbody id="fields-body"></tbody>
+  </table>
+ 
   <script>
     const sendButton = document.getElementById("send");
     const responseBox = document.getElementById("response");
+    const fieldsTable = document.getElementById("fields-table");   // ← PIEZA 1 (nueva)
+    const fieldsBody = document.getElementById("fields-body");     // ← PIEZA 1 (nueva)
 
     sendButton.addEventListener("click", async () => {
       const method = document.getElementById("method").value;
@@ -106,10 +143,49 @@
 
         const datos = await respuesta.json();
         responseBox.textContent = JSON.stringify(datos, null, 2);
+
+        // ↓↓↓ PIEZA 2 (nueva): encadenar el aplanado y poblar la tabla
+        if (datos.ok && datos.body) {
+          let cuerpo;
+          try {
+            cuerpo = JSON.parse(datos.body);
+          } catch {
+            cuerpo = null; // el body no era JSON (ej. texto plano)
+          }
+
+          if (cuerpo !== null) {
+            const res = await fetch("/api/flatten", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(cuerpo),
+            });
+            const analisis = await res.json();
+            renderTable(analisis.fields);
+          }
+        }
+        // ↑↑↑ PIEZA 2
+
       } catch (error) {
         responseBox.textContent = "Error al contactar el backend: " + error;
       }
     });
+
+    // ↓↓↓ PIEZA 3 (nueva): función que construye la tabla
+    function renderTable(fields) {
+      fieldsBody.innerHTML = "";  // limpiar filas anteriores
+
+      fields.forEach((field) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${field.path}</td>
+          <td>${field.type}</td>
+          <td>${JSON.stringify(field.value)}</td>
+        `;
+        fieldsBody.appendChild(tr);
+      });
+
+      fieldsTable.style.display = "table";  // mostrar la tabla
+    }
   </script>
 </body>
 </html>

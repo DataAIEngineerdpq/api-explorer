@@ -3,6 +3,7 @@ from pydantic import BaseModel
 import httpx
 import time
 from fastapi.responses import FileResponse
+from profiler import flatten
 
 app = FastAPI()
 
@@ -50,3 +51,9 @@ async def proxy(req: ProxyRequest):
         return {"ok": False, "error": "La URL no es válida."}
     except Exception as exc:
         return {"ok": False, "error": f"Error inesperado: {type(exc).__name__}: {exc}"}
+    
+
+@app.post("/api/flatten")
+async def flatten_endpoint(data: dict):
+    rows = flatten(data)
+    return {"fields": rows, "count": len(rows)}
