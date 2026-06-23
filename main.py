@@ -3,7 +3,7 @@ from pydantic import BaseModel
 import httpx
 import time
 from fastapi.responses import FileResponse
-from profiler import flatten
+from profiler import flatten, to_graph
 
 app = FastAPI()
 
@@ -57,3 +57,7 @@ async def proxy(req: ProxyRequest):
 async def flatten_endpoint(data: dict):
     rows = flatten(data)
     return {"fields": rows, "count": len(rows)}
+
+@app.post("/api/graph")
+async def graph_endpoint(data: dict):
+    return to_graph(data)
