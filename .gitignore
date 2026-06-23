@@ -13,3 +13,6 @@ __pycache__/
 .vscode/
 # Base de datos local (los datos no se versionan)
 *.db
+
+# Archivos exportados (datos, no código)
+exports/

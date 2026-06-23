@@ -5,6 +5,7 @@ import time
 from fastapi.responses import FileResponse
 from profiler import flatten, to_graph
 from database import init_db, save_request, get_requests
+from exporter import export_fields
 
 app = FastAPI()
 init_db()
@@ -68,3 +69,14 @@ async def graph_endpoint(data: dict):
 @app.get("/api/history")
 async def history_endpoint():
     return {"requests": get_requests()}
+
+
+@app.post("/api/export")
+async def export_endpoint(payload: dict):
+    fields = payload.get("fields", [])
+    fmt = payload.get("format", "csv")
+
+    path = export_fields(fields, fmt)
+
+    filename = f"export.{fmt}"
+    return FileResponse(path, filename=filename, media_type="application/octet-stream")

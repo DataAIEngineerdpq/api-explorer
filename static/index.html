@@ -141,6 +141,25 @@
 
     #search-count { color: #8b949e; font-size: 12px; font-family: monospace; }
     #history { margin-bottom: 24px; }
+    #export-bar {
+      margin-top: 16px;
+      display: flex;
+      gap: 8px;
+    }
+
+    #export-bar button {
+      background: #1c2128;
+      color: #e6edf3;
+      border: 1px solid #3d444d;
+      border-radius: 6px;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    #export-bar button:hover {
+      border-color: #e8a33d;
+    }
   </style>
 </head>
 <body>
@@ -177,6 +196,10 @@
   </div>
 
   <pre id="response">La respuesta aparecerá aquí…</pre>
+  <div id="export-bar" style="display:none">
+    <button id="export-csv">Exportar CSV</button>
+    <button id="export-parquet">Exportar Parquet</button>
+  </div>
   <table id="fields-table" style="display:none">
     <thead>
       <tr>
@@ -208,6 +231,8 @@
     const searchBtn = document.getElementById("search-btn");
     const searchCount = document.getElementById("search-count");
     const historyBody = document.getElementById("history-body");
+    const exportBar = document.getElementById("export-bar");
+    let currentFields = [];   // los campos de la respuesta actual
 
     let network = null;        // el grafo, accesible desde la búsqueda
     let graphNodes = [];       // los nodos actuales, para buscar en ellos
@@ -324,6 +349,9 @@ const COLORS = {
 function renderTable(fields) {
       fieldsBody.innerHTML = "";
 
+      currentFields = fields;        // recordar para exportar
+      exportBar.style.display = "flex";
+
       fields.forEach((field) => {
         const tr = document.createElement("tr");
         const a = field.annotations;
@@ -417,6 +445,28 @@ function renderTable(fields) {
 
     // Cargar el historial al abrir la página
     loadHistory();
+
+    async function exportData(formato) {
+      if (currentFields.length === 0) return;
+
+      const res = await fetch("/api/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fields: currentFields, format: formato }),
+      });
+
+      // Convertir la respuesta en un archivo y disparar la descarga
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `export.${formato}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById("export-csv").addEventListener("click", () => exportData("csv"));
+    document.getElementById("export-parquet").addEventListener("click", () => exportData("parquet"));
   </script>
 </body>
 </html>
