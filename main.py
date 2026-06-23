@@ -4,8 +4,10 @@ import httpx
 import time
 from fastapi.responses import FileResponse
 from profiler import flatten, to_graph
+from database import init_db, save_request, get_requests
 
 app = FastAPI()
+init_db()
 
 class ProxyRequest(BaseModel):
     method: str = "GET"
@@ -34,6 +36,7 @@ async def proxy(req: ProxyRequest):
                 content=req.body,
             )
         elapsed_ms = round((time.perf_counter() - start) * 1000, 1)
+        save_request(req.method, req.url, response.status_code, elapsed_ms, len(response.content))
         return {
             "ok": True,
             "status": response.status_code,
@@ -61,3 +64,7 @@ async def flatten_endpoint(data: dict):
 @app.post("/api/graph")
 async def graph_endpoint(data: dict):
     return to_graph(data)
+
+@app.get("/api/history")
+async def history_endpoint():
+    return {"requests": get_requests()}
