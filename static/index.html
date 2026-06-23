@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>API Explorer</title>
+  <title>API Explorer DataEngineerDPQ</title>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/dist/vis-network.min.js"></script>
   <style>
     body {
       font-family: system-ui, sans-serif;
@@ -103,7 +105,41 @@
     tr.has-actions td:first-child {
       border-left: 2px solid #e8a33d;
     }
+    #graph {
+      height: 500px;
+      margin-top: 16px;
+      background: #161b22;
+      border: 1px solid #2d333b;
+      border-radius: 6px;
     }
+
+    #graph-search {
+      margin-top: 16px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    #search-input {
+      flex: 1;
+      background: #1c2128;
+      color: #e6edf3;
+      border: 1px solid #3d444d;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-family: monospace;
+    }
+
+    #search-btn {
+      background: #1c2128;
+      color: #e6edf3;
+      border: 1px solid #3d444d;
+      border-radius: 6px;
+      padding: 8px 16px;
+      cursor: pointer;
+    }
+
+    #search-count { color: #8b949e; font-size: 12px; font-family: monospace; }
   </style>
 </head>
 <body>
@@ -136,12 +172,30 @@
     </thead>
     <tbody id="fields-body"></tbody>
   </table>
- 
+
+  <div id="graph-search" style="display:none">
+    <input type="text" id="search-input" placeholder="Buscar campo o valor…">
+    <button id="search-btn">Buscar / Siguiente</button>
+    <span id="search-count"></span>
+  </div>
+ <div id="graph" style="display:none"></div>
   <script>
     const sendButton = document.getElementById("send");
     const responseBox = document.getElementById("response");
     const fieldsTable = document.getElementById("fields-table");   // ← PIEZA 1 (nueva)
     const fieldsBody = document.getElementById("fields-body");     // ← PIEZA 1 (nueva)
+    const graphContainer = document.getElementById("graph");
+
+    const graphSearch = document.getElementById("graph-search");
+    const searchInput = document.getElementById("search-input");
+    const searchBtn = document.getElementById("search-btn");
+    const searchCount = document.getElementById("search-count");
+
+    let network = null;        // el grafo, accesible desde la búsqueda
+    let graphNodes = [];       // los nodos actuales, para buscar en ellos
+    let searchTerm = "";
+    let searchMatches = [];
+    let searchPos = 0;
 
     sendButton.addEventListener("click", async () => {
       const method = document.getElementById("method").value;
@@ -180,7 +234,16 @@
               body: JSON.stringify(cuerpo),
             });
             const analisis = await res.json();
-            renderTable(analisis.fields);
+            renderTable(analisis.fields)
+            
+            // Pedir y dibujar el grafo
+            const resGraph = await fetch("/api/graph", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(cuerpo),
+            });
+            const grafo = await resGraph.json();
+            renderGraph(grafo);;
           }
         }
         // ↑↑↑ PIEZA 2
@@ -189,7 +252,56 @@
         responseBox.textContent = "Error al contactar el backend: " + error;
       }
     });
+const COLORS = {
+      url: "#58a6ff", email: "#58a6ff", datetime: "#e8a33d",
+      integer: "#3fb950", float: "#3fb950", boolean: "#a371f7",
+      string: "#8b949e", null: "#f85149",
+    };
 
+    function renderGraph(grafo) {
+      const nodes = grafo.nodes.map((n) => {
+        let color = "#6e7681";              // contenedores (object/array)
+        if (n.kind === "value") {
+          color = COLORS[n.semanticType] || "#8b949e";
+        }
+        return {
+          id: n.id,
+          label: n.label,
+          color: { background: color, border: "#2d333b" },
+          font: { color: "#e6edf3", size: 12 },
+          shape: n.kind === "value" ? "box" : "ellipse",
+        };
+      });
+
+      const data = {
+        nodes: new vis.DataSet(nodes),
+        edges: new vis.DataSet(grafo.edges),
+      };
+
+      const options = {
+        nodes: { shape: "dot", size: 10 },
+        edges: { color: "#3d444d", smooth: { type: "continuous" } },
+        physics: {
+          solver: "forceAtlas2Based",
+          forceAtlas2Based: {
+            gravitationalConstant: -50,
+            centralGravity: 0.01,
+            springLength: 100,
+            springConstant: 0.08,
+          },
+          stabilization: { iterations: 150 },
+        },
+      };
+
+      graphContainer.style.display = "block";
+      network = new vis.Network(graphContainer, data, options);
+      graphNodes = grafo.nodes;
+      graphSearch.style.display = "flex";
+
+      // reiniciar la búsqueda para el nuevo grafo
+      searchTerm = "";
+      searchCount.textContent = "";;
+    }
     // ↓↓↓ PIEZA 3 (nueva): función que construye la tabla
 function renderTable(fields) {
       fieldsBody.innerHTML = "";
@@ -228,6 +340,39 @@ function renderTable(fields) {
 
       fieldsTable.style.display = "table";
     }
+
+    function doSearch() {
+      const term = searchInput.value.trim().toLowerCase();
+      if (!term || !network) return;
+
+      if (term !== searchTerm) {
+        // término nuevo: recalcular coincidencias y empezar por la primera
+        searchTerm = term;
+        searchMatches = graphNodes
+          .filter((n) => n.label.toLowerCase().includes(term))
+          .map((n) => n.id);
+        searchPos = 0;
+      } else if (searchMatches.length > 0) {
+        // mismo término: avanzar al siguiente, en ciclo
+        searchPos = (searchPos + 1) % searchMatches.length;
+      }
+
+      if (searchMatches.length === 0) {
+        searchCount.textContent = "Sin resultados";
+        network.unselectAll();
+        return;
+      }
+
+      const nodeId = searchMatches[searchPos];
+      network.selectNodes([nodeId]);
+      network.focus(nodeId, { scale: 1.3, animation: { duration: 500 } });
+      searchCount.textContent = `${searchPos + 1} de ${searchMatches.length}`;
+    }
+
+    searchBtn.addEventListener("click", doSearch);
+    searchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") doSearch();
+    });
   </script>
 </body>
 </html>

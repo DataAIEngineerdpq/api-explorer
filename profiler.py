@@ -103,15 +103,43 @@ def flatten(data, prefix=""):
         })
     return rows
 
+def to_graph(data):
+    nodes = []
+    edges = []
+
+    def walk(value, node_id, label):
+        if isinstance(value, dict):
+            nodes.append({"id": node_id, "label": label, "kind": "object"})
+            for key, child in value.items():
+                child_id = f"{node_id}.{key}"
+                edges.append({"from": node_id, "to": child_id})
+                walk(child, child_id, key)
+        elif isinstance(value, list):
+            nodes.append({"id": node_id, "label": f"{label} [{len(value)}]", "kind": "array"})
+            for index, child in enumerate(value):
+                child_id = f"{node_id}[{index}]"
+                edges.append({"from": node_id, "to": child_id})
+                walk(child, child_id, f"[{index}]")
+        else:
+            text = str(value)
+            if len(text) > 30:
+                text = text[:30] + "…"
+            nodes.append({
+                "id": node_id,
+                "label": f"{label}: {text}",
+                "kind": "value",
+                "semanticType": detect_type(value),
+            })
+
+    walk(data, "root", "root")
+    return {"nodes": nodes, "edges": edges}
+
 
 if __name__ == "__main__":
     import json
     ejemplo = {
-        "web": "https://github.com",
-        "correo": "daniel@correo.com",
-        "fecha": "2017-02-10T19:23:51Z",
-        "cantidad_texto": "42",
-        "cantidad_real": 42,
-        "vacio": "",
+        "name": "cpython",
+        "owner": {"login": "python", "id": 1525981},
+        "topics": ["python", "language"],
     }
-    print(json.dumps(flatten(ejemplo), indent=2, ensure_ascii=False))
+    print(json.dumps(to_graph(ejemplo), indent=2, ensure_ascii=False))
