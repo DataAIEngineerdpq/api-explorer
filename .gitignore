@@ -11,3 +11,5 @@ __pycache__/
 # Archivos del sistema y del editor
 .DS_Store
 .vscode/
+# Base de datos local (los datos no se versionan)
+*.db

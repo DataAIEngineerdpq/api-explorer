@@ -140,6 +140,7 @@
     }
 
     #search-count { color: #8b949e; font-size: 12px; font-family: monospace; }
+    #history { margin-bottom: 24px; }
   </style>
 </head>
 <body>
@@ -157,6 +158,22 @@
     <input type="text" id="url" placeholder="https://api.github.com/repos/python/cpython">
 
     <button id="send">Enviar</button>
+  </div>
+
+   <div id="history">
+    <h2 style="font-size:15px; color:#8b949e;">Historial</h2>
+    <table id="history-table">
+      <thead>
+        <tr>
+          <th>Método</th>
+          <th>URL</th>
+          <th>Status</th>
+          <th>Tiempo</th>
+          <th>Fecha</th>
+        </tr>
+      </thead>
+      <tbody id="history-body"></tbody>
+    </table>
   </div>
 
   <pre id="response">La respuesta aparecerá aquí…</pre>
@@ -190,6 +207,7 @@
     const searchInput = document.getElementById("search-input");
     const searchBtn = document.getElementById("search-btn");
     const searchCount = document.getElementById("search-count");
+    const historyBody = document.getElementById("history-body");
 
     let network = null;        // el grafo, accesible desde la búsqueda
     let graphNodes = [];       // los nodos actuales, para buscar en ellos
@@ -247,7 +265,7 @@
           }
         }
         // ↑↑↑ PIEZA 2
-
+        loadHistory();
       } catch (error) {
         responseBox.textContent = "Error al contactar el backend: " + error;
       }
@@ -373,6 +391,32 @@ function renderTable(fields) {
     searchInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") doSearch();
     });
+
+    async function loadHistory() {
+      try {
+        const res = await fetch("/api/history");
+        const data = await res.json();
+
+        historyBody.innerHTML = "";
+        data.requests.forEach((r) => {
+          const fecha = new Date(r.created_at).toLocaleString();
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${r.method}</td>
+            <td>${r.url}</td>
+            <td>${r.status ?? ""}</td>
+            <td>${r.time_ms ?? ""} ms</td>
+            <td>${fecha}</td>
+          `;
+          historyBody.appendChild(tr);
+        });
+      } catch (error) {
+        console.error("Error al cargar historial:", error);
+      }
+    }
+
+    // Cargar el historial al abrir la página
+    loadHistory();
   </script>
 </body>
 </html>
