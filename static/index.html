@@ -86,6 +86,24 @@
       color: #e6edf3;
       vertical-align: top;
     }
+
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin: 2px 4px 2px 0;
+      white-space: nowrap;
+    }
+
+    .badge-transform { background: #3a2e16; color: #e8c97d; }
+    .badge-validate  { background: #3d1f1f; color: #f0a0a0; }
+    .badge-enrich    { background: #16303a; color: #7dd3e8; }
+
+    tr.has-actions td:first-child {
+      border-left: 2px solid #e8a33d;
+    }
+    }
   </style>
 </head>
 <body>
@@ -110,8 +128,10 @@
     <thead>
       <tr>
         <th>Campo</th>
-        <th>Tipo</th>
+        <th>Tipo crudo</th>
+        <th>Tipo semántico</th>
         <th>Valor</th>
+        <th>Acciones sugeridas</th>
       </tr>
     </thead>
     <tbody id="fields-body"></tbody>
@@ -171,20 +191,42 @@
     });
 
     // ↓↓↓ PIEZA 3 (nueva): función que construye la tabla
-    function renderTable(fields) {
-      fieldsBody.innerHTML = "";  // limpiar filas anteriores
+function renderTable(fields) {
+      fieldsBody.innerHTML = "";
 
       fields.forEach((field) => {
         const tr = document.createElement("tr");
+        const a = field.annotations;
+
+        // Construir los badges de cada categoría
+        let badges = "";
+        a.transformations.forEach((t) => {
+          badges += `<span class="badge badge-transform">${t}</span>`;
+        });
+        a.validations.forEach((v) => {
+          badges += `<span class="badge badge-validate">${v}</span>`;
+        });
+        a.enrichments.forEach((e) => {
+          badges += `<span class="badge badge-enrich">${e}</span>`;
+        });
+
+        // Resaltar la fila si tiene alguna acción pendiente
+        const total = a.transformations.length + a.validations.length + a.enrichments.length;
+        if (total > 0) {
+          tr.classList.add("has-actions");
+        }
+
         tr.innerHTML = `
           <td>${field.path}</td>
           <td>${field.type}</td>
+          <td>${field.semanticType}</td>
           <td>${JSON.stringify(field.value)}</td>
+          <td>${badges}</td>
         `;
         fieldsBody.appendChild(tr);
       });
 
-      fieldsTable.style.display = "table";  // mostrar la tabla
+      fieldsTable.style.display = "table";
     }
   </script>
 </body>
