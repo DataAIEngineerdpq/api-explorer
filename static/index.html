@@ -160,6 +160,52 @@
     #export-bar button:hover {
       border-color: #e8a33d;
     }
+
+    #headers-section {
+      margin-bottom: 16px;
+      padding: 12px;
+      background: #161b22;
+      border: 1px solid #2d333b;
+      border-radius: 6px;
+    }
+
+    .header-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .header-row input {
+      flex: 1;
+      background: #1c2128;
+      color: #e6edf3;
+      border: 1px solid #3d444d;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-family: monospace;
+      font-size: 13px;
+    }
+
+    .header-row button {
+      background: #1c2128;
+      color: #f85149;
+      border: 1px solid #3d444d;
+      border-radius: 6px;
+      padding: 0 12px;
+      cursor: pointer;
+    }
+
+    #add-header {
+      background: #1c2128;
+      color: #e6edf3;
+      border: 1px solid #3d444d;
+      border-radius: 6px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    #add-header:hover { border-color: #e8a33d; }
   </style>
 </head>
 <body>
@@ -178,6 +224,13 @@
 
     <button id="send">Enviar</button>
   </div>
+
+  <div id="headers-section">
+    <h2 style="font-size:14px; color:#8b949e; margin-bottom:8px;">Headers</h2>
+    <div id="headers-list"></div>
+    <button id="add-header">+ Añadir header</button>
+  </div>
+
 
    <div id="history">
     <h2 style="font-size:15px; color:#8b949e;">Historial</h2>
@@ -232,6 +285,11 @@
     const searchCount = document.getElementById("search-count");
     const historyBody = document.getElementById("history-body");
     const exportBar = document.getElementById("export-bar");
+
+    const headersList = document.getElementById("headers-list");
+    const addHeaderBtn = document.getElementById("add-header");
+
+
     let currentFields = [];   // los campos de la respuesta actual
 
     let network = null;        // el grafo, accesible desde la búsqueda
@@ -255,7 +313,7 @@
         const respuesta = await fetch("/api/proxy", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ method: method, url: url }),
+          body: JSON.stringify({ method: method, url: url, headers: collectHeaders() }),
         });
 
         const datos = await respuesta.json();
@@ -467,6 +525,33 @@ function renderTable(fields) {
 
     document.getElementById("export-csv").addEventListener("click", () => exportData("csv"));
     document.getElementById("export-parquet").addEventListener("click", () => exportData("parquet"));
+
+    function addHeaderRow(key = "", value = "") {
+      const row = document.createElement("div");
+      row.className = "header-row";
+      row.innerHTML = `
+        <input type="text" class="header-key" placeholder="Header (ej: Authorization)" value="${key}">
+        <input type="text" class="header-value" placeholder="Valor (ej: Bearer tu_token)" value="${value}">
+        <button class="remove-header">✕</button>
+      `;
+      row.querySelector(".remove-header").addEventListener("click", () => row.remove());
+      headersList.appendChild(row);
+    }
+
+    addHeaderBtn.addEventListener("click", () => addHeaderRow());
+
+
+    function collectHeaders() {
+      const headers = {};
+      document.querySelectorAll(".header-row").forEach((row) => {
+        const key = row.querySelector(".header-key").value.trim();
+        const value = row.querySelector(".header-value").value.trim();
+        if (key) {
+          headers[key] = value;
+        }
+      });
+      return headers;
+    }
   </script>
 </body>
 </html>
