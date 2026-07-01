@@ -1,6 +1,7 @@
 import psycopg
 from psycopg.rows import dict_row
 from datetime import datetime, timezone
+from embeddings import generate_embedding
 
 # Datos de conexión al PostgreSQL del contenedor
 DB_CONFIG = {
@@ -58,11 +59,42 @@ def get_requests(limit=50):
     conn.close()
     return rows
 
+def save_embedding(source_url, content):
+    embedding = generate_embedding(content)
+    conn = get_connection()
+    conn.execute(
+        """
+        INSERT INTO api_embeddings (source_url, content, embedding, created_at)
+        VALUES (%s, %s, %s, %s)
+        """,
+        (source_url, content, str(embedding), datetime.now(timezone.utc).isoformat()),
+    )
+    conn.commit()
+    conn.close()
+
+
+def search_similar(query, limit=5):
+    query_embedding = generate_embedding(query)
+    conn = get_connection()
+    cursor = conn.execute(
+        """
+        SELECT source_url, content, embedding <=> %s AS distance
+        FROM api_embeddings
+        ORDER BY distance
+        LIMIT %s
+        """,
+        (str(query_embedding), limit),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
 if __name__ == "__main__":
-    init_db()
-    save_request("GET", "https://api.github.com/zen", 200, 123.4, 56)
-    print("Guardado. Historial actual:")
-    for fila in get_requests():
-        print(fila)
+    consulta = "información de personas y usuarios"
+    print(f"Buscando: '{consulta}'\n")
+    resultados = search_similar(consulta)
+    for r in resultados:
+        print(f"  distancia {r['distance']:.3f}  →  {r['source_url']}")
+        print(f"     {r['content'][:70]}...\n")
 
 

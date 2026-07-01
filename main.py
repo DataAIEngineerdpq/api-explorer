@@ -4,7 +4,7 @@ import httpx
 import time
 from fastapi.responses import FileResponse
 from profiler import flatten, to_graph
-from database import init_db, save_request, get_requests
+from database import init_db, save_request, get_requests, save_embedding, search_similar
 from exporter import export_fields
 
 app = FastAPI()
@@ -38,6 +38,12 @@ async def proxy(req: ProxyRequest):
             )
         elapsed_ms = round((time.perf_counter() - start) * 1000, 1)
         save_request(req.method, req.url, response.status_code, elapsed_ms, len(response.content))
+        # Guardar embedding del contenido explorado (memoria semántica)
+        try:
+            if response.text:
+                save_embedding(req.url, response.text[:2000])
+        except Exception as e:
+            print(f"No se pudo guardar el embedding: {e}")
         return {
             "ok": True,
             "status": response.status_code,
@@ -80,3 +86,8 @@ async def export_endpoint(payload: dict):
 
     filename = f"export.{fmt}"
     return FileResponse(path, filename=filename, media_type="application/octet-stream")
+
+@app.get("/api/search")
+async def search_endpoint(q: str):
+    resultados = search_similar(q)
+    return {"query": q, "results": resultados}
