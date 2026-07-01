@@ -247,6 +247,63 @@
       font-size: 12px;
     }
 
+    #rag-section {
+      margin-bottom: 16px;
+      padding: 12px;
+      background: #161b22;
+      border: 1px solid #2d333b;
+      border-radius: 6px;
+    }
+
+    .rag-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #8b949e;
+    }
+
+    .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background: #3d444d; border-radius: 22px; transition: .3s;
+    }
+    .slider:before {
+      content: ""; position: absolute; height: 16px; width: 16px;
+      left: 3px; bottom: 3px; background: #e6edf3; border-radius: 50%; transition: .3s;
+    }
+    input:checked + .slider { background: #e8a33d; }
+    input:checked + .slider:before { transform: translateX(18px); }
+
+    #cloud-warning {
+      margin-top: 8px; padding: 6px 10px;
+      background: #3a2e16; color: #e8c97d;
+      border-radius: 4px; font-size: 12px;
+    }
+
+    #rag-input {
+      flex: 1; background: #1c2128; color: #e6edf3;
+      border: 1px solid #3d444d; border-radius: 6px;
+      padding: 8px 10px; font-family: monospace; font-size: 13px;
+    }
+
+    #rag-btn {
+      background: #e8a33d; color: #1a1303; border: none;
+      border-radius: 6px; padding: 8px 16px; font-weight: bold; cursor: pointer;
+    }
+
+    #rag-answer {
+      margin-top: 12px; padding: 10px 12px;
+      background: #1c2128; border-left: 2px solid #e8a33d;
+      border-radius: 4px; font-size: 13px; line-height: 1.5;
+      white-space: pre-wrap; display: none;
+    }
+
+    #rag-answer .sources {
+      margin-top: 8px; font-size: 11px; color: #8b949e; font-family: monospace;
+    }
+
     #add-header:hover { border-color: #e8a33d; }
   </style>
 </head>
@@ -281,6 +338,33 @@
     </div>
     <div id="semantic-results"></div>
   </div>
+
+  <div id="rag-section">
+    <h2 style="font-size:14px; color:#8b949e; margin-bottom:8px;">Pregunta a tus APIs (RAG)</h2>
+
+    <div class="rag-toggle">
+      <span>Modelo:</span>
+      <label class="switch">
+        <input type="checkbox" id="cloud-toggle">
+        <span class="slider"></span>
+      </label>
+      <span id="model-label">Local (privado)</span>
+    </div>
+
+    <div id="cloud-warning" style="display:none;">
+      ⚠ Con Cloud, los datos recuperados se envían a un servidor externo.
+    </div>
+
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <input type="text" id="rag-input" placeholder="Ej: ¿Qué APIs tienen datos de personas?">
+      <button id="rag-btn">Preguntar</button>
+    </div>
+
+    <div id="rag-answer"></div>
+  </div>
+
+
+
 
 
    <div id="history">
@@ -638,6 +722,64 @@ function renderTable(fields) {
     semanticBtn.addEventListener("click", doSemanticSearch);
     semanticInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") doSemanticSearch();
+    });
+
+
+    const cloudToggle = document.getElementById("cloud-toggle");
+    const modelLabel = document.getElementById("model-label");
+    const cloudWarning = document.getElementById("cloud-warning");
+    const ragInput = document.getElementById("rag-input");
+    const ragBtn = document.getElementById("rag-btn");
+    const ragAnswer = document.getElementById("rag-answer");
+
+    // El toggle actualiza la etiqueta y muestra/oculta la advertencia
+    cloudToggle.addEventListener("change", () => {
+      if (cloudToggle.checked) {
+        modelLabel.textContent = "Cloud (externo)";
+        cloudWarning.style.display = "block";
+      } else {
+        modelLabel.textContent = "Local (privado)";
+        cloudWarning.style.display = "none";
+      }
+    });
+
+    async function askRag() {
+      const question = ragInput.value.trim();
+      if (!question) return;
+
+      ragAnswer.style.display = "block";
+      ragAnswer.textContent = "Pensando… (el modelo está generando la respuesta)";
+
+      try {
+        const res = await fetch("/api/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question: question,
+            use_cloud: cloudToggle.checked,
+          }),
+        });
+        const data = await res.json();
+
+        const fuentes = (data.sources || [])
+          .map((s) => `• ${s}`)
+          .join("\n");
+        ragAnswer.innerHTML = "";
+        ragAnswer.textContent = data.answer;
+        if (fuentes) {
+          const src = document.createElement("div");
+          src.className = "sources";
+          src.textContent = "Fuentes consultadas:\n" + fuentes;
+          ragAnswer.appendChild(src);
+        }
+      } catch (error) {
+        ragAnswer.textContent = "Error al preguntar: " + error;
+      }
+    }
+
+    ragBtn.addEventListener("click", askRag);
+    ragInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") askRag();
     });
 
 
