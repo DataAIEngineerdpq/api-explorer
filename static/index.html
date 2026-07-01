@@ -195,6 +195,48 @@
       cursor: pointer;
     }
 
+    #semantic-search {
+      margin-bottom: 16px;
+      padding: 12px;
+      background: #161b22;
+      border: 1px solid #2d333b;
+      border-radius: 6px;
+    }
+
+    #semantic-input {
+      flex: 1;
+      background: #1c2128;
+      color: #e6edf3;
+      border: 1px solid #3d444d;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-family: monospace;
+      font-size: 13px;
+    }
+
+    #semantic-btn {
+      background: #e8a33d;
+      color: #1a1303;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .semantic-result {
+      margin-top: 10px;
+      padding: 8px 10px;
+      background: #1c2128;
+      border-left: 2px solid #e8a33d;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .semantic-result .url { color: #58a6ff; font-family: monospace; }
+    .semantic-result .dist { color: #8b949e; float: right; }
+    .semantic-result .snippet { color: #8b949e; margin-top: 4px; font-family: monospace; }
+
     #add-header {
       background: #1c2128;
       color: #e6edf3;
@@ -229,6 +271,15 @@
     <h2 style="font-size:14px; color:#8b949e; margin-bottom:8px;">Headers</h2>
     <div id="headers-list"></div>
     <button id="add-header">+ Añadir header</button>
+  </div>
+
+  <div id="semantic-search">
+    <h2 style="font-size:14px; color:#8b949e; margin-bottom:8px;">Búsqueda semántica</h2>
+    <div style="display:flex; gap:8px;">
+      <input type="text" id="semantic-input" placeholder="Busca por significado (ej: datos de personas)">
+      <button id="semantic-btn">Buscar</button>
+    </div>
+    <div id="semantic-results"></div>
   </div>
 
 
@@ -552,6 +603,45 @@ function renderTable(fields) {
       });
       return headers;
     }
+
+    const semanticInput = document.getElementById("semantic-input");
+    const semanticBtn = document.getElementById("semantic-btn");
+    const semanticResults = document.getElementById("semantic-results");
+
+    async function doSemanticSearch() {
+      const query = semanticInput.value.trim();
+      if (!query) return;
+
+      semanticResults.innerHTML = "Buscando…";
+
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+
+        semanticResults.innerHTML = "";
+        data.results.forEach((r) => {
+          const div = document.createElement("div");
+          div.className = "semantic-result";
+          const snippet = r.content.slice(0, 100).replace(/</g, "&lt;");
+          div.innerHTML = `
+            <span class="dist">dist: ${r.distance.toFixed(3)}</span>
+            <span class="url">${r.source_url}</span>
+            <div class="snippet">${snippet}…</div>
+          `;
+          semanticResults.appendChild(div);
+        });
+      } catch (error) {
+        semanticResults.innerHTML = "Error en la búsqueda: " + error;
+      }
+    }
+
+    semanticBtn.addEventListener("click", doSemanticSearch);
+    semanticInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") doSemanticSearch();
+    });
+
+
+
   </script>
 </body>
 </html>
