@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse
 from profiler import flatten, to_graph
 from database import init_db, save_request, get_requests, save_embedding, search_similar
 from exporter import export_fields
+from rag import answer_question
 
 app = FastAPI()
 init_db()
@@ -91,3 +92,15 @@ async def export_endpoint(payload: dict):
 async def search_endpoint(q: str):
     resultados = search_similar(q)
     return {"query": q, "results": resultados}
+
+@app.post("/api/ask")
+async def ask_endpoint(payload: dict):
+    question = payload.get("question", "")
+    use_cloud = payload.get("use_cloud", False)
+
+    if not question:
+        return {"answer": "Escribe una pregunta.", "sources": []}
+
+    resultado = answer_question(question, use_cloud=use_cloud)
+    return resultado
+
