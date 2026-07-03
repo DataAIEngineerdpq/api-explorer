@@ -7,6 +7,7 @@ from profiler import flatten, to_graph
 from database import init_db, save_request, get_requests, save_embedding, search_similar
 from exporter import export_fields
 from rag import answer_question
+from agent import run_agent
 
 app = FastAPI()
 init_db()
@@ -102,5 +103,16 @@ async def ask_endpoint(payload: dict):
         return {"answer": "Escribe una pregunta.", "sources": []}
 
     resultado = answer_question(question, use_cloud=use_cloud)
+    return resultado
+
+@app.post("/api/agent")
+async def agent_endpoint(payload: dict):
+    question = payload.get("question", "")
+    use_cloud = payload.get("use_cloud", False)
+
+    if not question:
+        return {"answer": "Escribe una pregunta.", "steps": []}
+
+    resultado = await run_agent(question, use_cloud=use_cloud)
     return resultado
 

@@ -304,6 +304,62 @@
       margin-top: 8px; font-size: 11px; color: #8b949e; font-family: monospace;
     }
 
+    #agent-section {
+      margin-bottom: 16px; padding: 12px;
+      background: #161b22; border: 1px solid #2d333b; border-radius: 6px;
+    }
+    #agent-input {
+      flex: 1; background: #1c2128; color: #e6edf3;
+      border: 1px solid #3d444d; border-radius: 6px;
+      padding: 8px 10px; font-family: monospace; font-size: 13px;
+    }
+    #agent-btn {
+      background: #e8a33d; color: #1a1303; border: none;
+      border-radius: 6px; padding: 8px 16px; font-weight: bold; cursor: pointer;
+    }
+    #agent-cloud-warning {
+      margin-top: 8px; padding: 6px 10px;
+      background: #3a2e16; color: #e8c97d; border-radius: 4px; font-size: 12px;
+    }
+    #agent-status { margin-top: 10px; font-size: 12px; color: #8b949e; font-family: monospace; }
+    .agent-step {
+      display: flex; align-items: center; gap: 10px;
+      margin-top: 8px; padding: 10px 12px;
+      background: #1c2128; border: 1px solid #2d333b;
+      border-radius: 6px; cursor: pointer; transition: border-color .15s;
+    }
+    .agent-step:hover { border-color: #e8a33d; }
+    .agent-step.selected { border-color: #e8a33d; border-width: 2px; }
+    .step-icon {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+    .step-reason  { background: #2d2545; color: #b794f6; }
+    .step-act     { background: #3a2e16; color: #e8c97d; }
+    .step-observe { background: #16303a; color: #7dd3e8; }
+    .step-answer  { background: #163a2a; color: #7de8a3; }
+    .step-title { font-size: 13px; font-weight: 600; color: #e6edf3; }
+    .step-sub { font-size: 11px; color: #8b949e; }
+    #agent-answer {
+      margin-top: 12px; padding: 10px 12px;
+      background: #163a2a; border-left: 2px solid #3fb950;
+      border-radius: 4px; font-size: 13px; line-height: 1.5;
+      white-space: pre-wrap; display: none;
+    }
+    #agent-detail {
+      margin-top: 10px; padding: 12px;
+      background: #0d1117; border: 1px solid #2d333b; border-radius: 6px;
+      font-family: monospace; font-size: 12px; display: none;
+    }
+    #agent-detail .kv { color: #8b949e; }
+    #agent-detail .kv b { color: #e6edf3; font-weight: 600; }
+    #agent-detail pre {
+      margin-top: 8px; padding: 8px; background: #161b22;
+      border-radius: 4px; white-space: pre-wrap; word-break: break-all;
+      color: #7dd3e8; max-height: 200px; overflow-y: auto;
+    }
+
     #add-header:hover { border-color: #e8a33d; }
   </style>
 </head>
@@ -359,6 +415,36 @@
       <input type="text" id="rag-input" placeholder="Ej: ¿Qué APIs tienen datos de personas?">
       <button id="rag-btn">Preguntar</button>
     </div>
+
+    <div id="agent-section">
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+      <span style="font-size:16px;">🚀</span>
+      <h2 style="font-size:14px; color:#8b949e; margin:0;">Control de misión — Agente</h2>
+    </div>
+
+    <div class="rag-toggle">
+      <span>Modelo:</span>
+      <label class="switch">
+        <input type="checkbox" id="agent-cloud-toggle">
+        <span class="slider"></span>
+      </label>
+      <span id="agent-model-label">Local (privado)</span>
+    </div>
+
+    <div id="agent-cloud-warning" style="display:none;">
+      ⚠ Con Cloud, los datos explorados se envían a un servidor externo.
+    </div>
+
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <input type="text" id="agent-input" placeholder="Ej: dime la descripción del repo python/cpython en GitHub">
+      <button id="agent-btn">Lanzar misión</button>
+    </div>
+
+    <div id="agent-status"></div>
+    <div id="agent-steps"></div>
+    <div id="agent-answer"></div>
+    <div id="agent-detail"></div>
+  </div>
 
     <div id="rag-answer"></div>
   </div>
@@ -781,7 +867,126 @@ function renderTable(fields) {
     ragInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") askRag();
     });
+const agentCloudToggle = document.getElementById("agent-cloud-toggle");
+    const agentModelLabel = document.getElementById("agent-model-label");
+    const agentCloudWarning = document.getElementById("agent-cloud-warning");
+    const agentInput = document.getElementById("agent-input");
+    const agentBtn = document.getElementById("agent-btn");
+    const agentStatus = document.getElementById("agent-status");
+    const agentSteps = document.getElementById("agent-steps");
+    const agentAnswer = document.getElementById("agent-answer");
+    const agentDetail = document.getElementById("agent-detail");
 
+    let currentSteps = [];
+
+    agentCloudToggle.addEventListener("change", () => {
+      if (agentCloudToggle.checked) {
+        agentModelLabel.textContent = "Cloud (externo)";
+        agentCloudWarning.style.display = "block";
+      } else {
+        agentModelLabel.textContent = "Local (privado)";
+        agentCloudWarning.style.display = "none";
+      }
+    });
+
+    const stepMeta = {
+      reason:  { icon: "🧠", cls: "step-reason",  label: "Razonar" },
+      act:     { icon: "📡", cls: "step-act",     label: "Actuar" },
+      observe: { icon: "📊", cls: "step-observe", label: "Observar" },
+      answer:  { icon: "🏁", cls: "step-answer",  label: "Responder" },
+    };
+
+    async function launchAgent() {
+      const question = agentInput.value.trim();
+      if (!question) return;
+
+      agentSteps.innerHTML = "";
+      agentAnswer.style.display = "none";
+      agentDetail.style.display = "none";
+      agentStatus.textContent = "🛰 Misión en curso… el agente está razonando y explorando.";
+
+      try {
+        const res = await fetch("/api/agent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question, use_cloud: agentCloudToggle.checked }),
+        });
+        const data = await res.json();
+        currentSteps = data.steps || [];
+
+        agentStatus.textContent = `✓ Misión completa — ${currentSteps.length} pasos ejecutados.`;
+
+        currentSteps.forEach((step, i) => {
+          const meta = stepMeta[step.type] || stepMeta.reason;
+          const div = document.createElement("div");
+          div.className = "agent-step";
+          div.onclick = () => showStepDetail(i);
+
+          let sub = "";
+          if (step.type === "act") sub = step.url;
+          else if (step.type === "observe") sub = `status ${step.content.status ?? "?"}`;
+          else if (step.content) sub = String(step.content).slice(0, 60);
+
+          div.innerHTML = `
+            <div class="step-icon ${meta.cls}">${meta.icon}</div>
+            <div style="flex:1;">
+              <div class="step-title">${i + 1} · ${meta.label}</div>
+              <div class="step-sub">${sub}</div>
+            </div>
+          `;
+          agentSteps.appendChild(div);
+        });
+
+        agentAnswer.style.display = "block";
+        agentAnswer.textContent = "🏁 " + data.answer;
+      } catch (error) {
+        agentStatus.textContent = "Error en la misión: " + error;
+      }
+    }
+
+    function showStepDetail(i) {
+      const step = currentSteps[i];
+      document.querySelectorAll(".agent-step").forEach((el, idx) => {
+        el.classList.toggle("selected", idx === i);
+      });
+
+      let html = "";
+      if (step.type === "act") {
+        html = `
+          <div class="kv"><b>Fase:</b> Actuar (transmisión)</div>
+          <div class="kv"><b>Método:</b> GET</div>
+          <div class="kv"><b>Endpoint:</b> ${step.url}</div>
+          <div class="kv"><b>Protocolo:</b> HTTP/1.1 sobre TLS</div>
+        `;
+      } else if (step.type === "observe") {
+        const c = step.content;
+        html = `
+          <div class="kv"><b>Fase:</b> Observar (telemetría)</div>
+          <div class="kv"><b>Status:</b> ${c.status ?? "?"}</div>
+          <div class="kv"><b>OK:</b> ${c.ok}</div>
+          <div class="kv"><b>Respuesta recibida:</b></div>
+          <pre>${(c.body || c.error || "").replace(/</g, "&lt;")}</pre>
+        `;
+      } else if (step.type === "reason") {
+        html = `
+          <div class="kv"><b>Fase:</b> Razonar (cognición)</div>
+          <div class="kv"><b>Decisión del agente:</b></div>
+          <pre>${String(step.content).replace(/</g, "&lt;")}</pre>
+        `;
+      } else {
+        html = `
+          <div class="kv"><b>Fase:</b> Responder (aterrizaje)</div>
+          <pre>${String(step.content).replace(/</g, "&lt;")}</pre>
+        `;
+      }
+      agentDetail.innerHTML = html;
+      agentDetail.style.display = "block";
+    }
+
+    agentBtn.addEventListener("click", launchAgent);
+    agentInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") launchAgent();
+    });
 
 
   </script>
