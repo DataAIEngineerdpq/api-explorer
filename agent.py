@@ -39,9 +39,17 @@ async def run_agent(question: str, use_cloud: bool = False, max_steps: int = 5):
         respuesta = ollama.chat(model=model, messages=messages)
         contenido = respuesta["message"]["content"]
 
+         # Limpiar posible formato markdown (```json ... ```) que añaden algunos modelos
+        limpio = contenido.strip()
+        if limpio.startswith("```"):
+            # Quitar la primera línea (```json) y la última (```)
+            lineas = limpio.split("\n")
+            limpio = "\n".join(lineas[1:-1]) if len(lineas) > 2 else limpio
+            limpio = limpio.strip()
+
         # Intentar leer la decisión del LLM como JSON
         try:
-            decision = json.loads(contenido)
+            decision = json.loads(limpio)
         except json.JSONDecodeError:
             # Si no devolvió JSON válido, lo tratamos como respuesta final
             steps.append({"type": "answer", "content": contenido})
