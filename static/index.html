@@ -472,6 +472,7 @@
           <th>Status</th>
           <th>Tiempo</th>
           <th>Fecha</th>
+          <th>Origen</th>
         </tr>
       </thead>
       <tbody id="history-body"></tbody>
@@ -716,6 +717,8 @@ function renderTable(fields) {
         historyBody.innerHTML = "";
         data.requests.forEach((r) => {
           const fecha = new Date(r.created_at).toLocaleString();
+          const origen = r.source || "manual";
+          const colorOrigen = origen === "agent" ? "#7dd3e8" : "#8b949e";
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td>${r.method}</td>
@@ -723,6 +726,7 @@ function renderTable(fields) {
             <td>${r.status ?? ""}</td>
             <td>${r.time_ms ?? ""} ms</td>
             <td>${fecha}</td>
+            <td style="color:${colorOrigen}; font-weight:600;">${origen}</td>
           `;
           historyBody.appendChild(tr);
         });
