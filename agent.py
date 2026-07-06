@@ -22,7 +22,7 @@ Reglas:
 - Cuando tengas la respuesta, usa final_answer.
 """
 
-async def run_agent(question: str, use_cloud: bool = False, max_steps: int = 5):
+async def run_agent(question: str, use_cloud: bool = False, headers: dict = None, max_steps: int = 5):
     model = "gemma4:cloud" if use_cloud else "qwen2.5-coder:7b"
 
     # El historial de la conversación con el LLM
@@ -70,7 +70,7 @@ async def run_agent(question: str, use_cloud: bool = False, max_steps: int = 5):
             steps.append({"type": "act", "url": url})
 
             # --- OBSERVAR: ejecutar la herramienta y ver el resultado ---
-            observacion = await explore_api(url)
+            observacion = await explore_api(url, headers=headers)
             steps.append({"type": "observe", "content": observacion})
 
             # Devolver la observación al LLM para que siga razonando
@@ -89,17 +89,16 @@ async def run_agent(question: str, use_cloud: bool = False, max_steps: int = 5):
     return {"answer": "Alcancé el límite de pasos sin una respuesta final.", "steps": steps}
 
 # Herramienta que el agente puede usar: explorar una API
-async def explore_api(url: str, method: str = "GET", headers: dict = None):
-    """Hace una petición HTTP a una API y devuelve un resumen del resultado."""
+async def explore_api(url: str, headers: dict = None):
+    """Hace una petición GET a una API y devuelve un resumen del resultado."""
     headers = headers or {}
     try:
         async with httpx.AsyncClient(follow_redirects=True, timeout=15.0) as client:
-            response = await client.request(method, url, headers=headers)
-        # Devolvemos un resumen que el LLM pueda "observar"
+            response = await client.get(url, headers=headers)  # SOLO GET, por seguridad
         return {
             "ok": True,
             "status": response.status_code,
-            "body": response.text[:1500],  # recortado para no saturar al LLM
+            "body": response.text[:1500],
         }
     except Exception as e:
         return {"ok": False, "error": str(e)}
