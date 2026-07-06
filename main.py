@@ -109,10 +109,11 @@ async def ask_endpoint(payload: dict):
 async def agent_endpoint(payload: dict):
     question = payload.get("question", "")
     use_cloud = payload.get("use_cloud", False)
+    headers = payload.get("headers", {})
 
     if not question:
         return {"answer": "Escribe una pregunta.", "steps": []}
 
-    resultado = await run_agent(question, use_cloud=use_cloud)
+    resultado = await run_agent(question, use_cloud=use_cloud, headers=headers)
     return resultado
 
