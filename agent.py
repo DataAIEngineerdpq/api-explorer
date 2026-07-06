@@ -1,6 +1,7 @@
 import httpx
 import json
 import ollama
+from database import save_request
 
 SYSTEM_PROMPT = """Eres un agente que explora APIs para responder preguntas.
 
@@ -95,6 +96,10 @@ async def explore_api(url: str, headers: dict = None):
     try:
         async with httpx.AsyncClient(follow_redirects=True, timeout=15.0) as client:
             response = await client.get(url, headers=headers)  # SOLO GET, por seguridad
+        try:
+            save_request("GET", url, response.status_code, 0, len(response.content), source="agent")
+        except Exception:
+            pass
         return {
             "ok": True,
             "status": response.status_code,

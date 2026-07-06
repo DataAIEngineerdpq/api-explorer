@@ -35,14 +35,14 @@ def init_db():
     conn.close()
 
 
-def save_request(method, url, status, time_ms, size_bytes):
+def save_request(method, url, status, time_ms, size_bytes, source="manual"):
     conn = get_connection()
     conn.execute(
         """
-        INSERT INTO requests (method, url, status, time_ms, size_bytes, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s)
+        INSERT INTO requests (method, url, status, time_ms, size_bytes, created_at, source)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         """,
-        (method, url, status, time_ms, size_bytes, datetime.now(timezone.utc).isoformat()),
+        (method, url, status, time_ms, size_bytes, datetime.now(timezone.utc).isoformat(), source),
     )
     conn.commit()
     conn.close()
@@ -51,7 +51,7 @@ def save_request(method, url, status, time_ms, size_bytes):
 def get_requests(limit=50):
     conn = get_connection()
     cursor = conn.execute(
-        "SELECT id, method, url, status, time_ms, size_bytes, created_at "
+        "SELECT id, method, url, status, time_ms, size_bytes, created_at, source "
         "FROM requests ORDER BY id DESC LIMIT %s",
         (limit,),
     )
