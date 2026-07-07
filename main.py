@@ -8,6 +8,7 @@ from database import init_db, save_request, get_requests, save_embedding, search
 from exporter import export_fields
 from rag import answer_question
 from agent import run_agent
+from modeling import recommend_with_llm
 
 app = FastAPI()
 init_db()
@@ -115,5 +116,17 @@ async def agent_endpoint(payload: dict):
         return {"answer": "Escribe una pregunta.", "steps": []}
 
     resultado = await run_agent(question, use_cloud=use_cloud, headers=headers)
+    return resultado
+
+
+@app.post("/api/model")
+async def model_endpoint(payload: dict):
+    fields = payload.get("fields", [])
+    use_cloud = payload.get("use_cloud", False)
+
+    if not fields:
+        return {"recommendation": "No hay campos para modelar. Explora una API primero.", "hints": [], "summary": {}}
+
+    resultado = recommend_with_llm(fields, use_cloud=use_cloud)
     return resultado
 

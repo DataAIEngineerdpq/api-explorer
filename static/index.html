@@ -360,6 +360,17 @@
       color: #7dd3e8; max-height: 200px; overflow-y: auto;
     }
 
+    #model-btn {
+      background: #e8a33d; color: #1a1303; border: none;
+      border-radius: 6px; padding: 8px 16px; font-weight: bold; cursor: pointer;
+    }
+    #model-result {
+      margin-top: 12px; padding: 14px 16px;
+      background: #161b22; border: 1px solid #2d333b; border-radius: 6px;
+      font-size: 13px; line-height: 1.6; white-space: pre-wrap;
+    }
+    #model-result h3 { color: #e8a33d; font-size: 14px; margin: 12px 0 6px; }
+
     #add-header:hover { border-color: #e8a33d; }
   </style>
 </head>
@@ -484,6 +495,20 @@
     <button id="export-csv">Exportar CSV</button>
     <button id="export-parquet">Exportar Parquet</button>
   </div>
+
+  <div id="model-bar" style="display:none; margin-top:12px;">
+    <button id="model-btn">🏛 Sugerir modelo de datos</button>
+    <div class="rag-toggle" style="margin-top:8px;">
+      <span>Modelo IA:</span>
+      <label class="switch">
+        <input type="checkbox" id="model-cloud-toggle">
+        <span class="slider"></span>
+      </label>
+      <span id="model-model-label">Local (privado)</span>
+    </div>
+  </div>
+
+  <div id="model-result" style="display:none;"></div>
   <table id="fields-table" style="display:none">
     <thead>
       <tr>
@@ -640,6 +665,8 @@ function renderTable(fields) {
 
       currentFields = fields;        // recordar para exportar
       exportBar.style.display = "flex";
+
+      modelBar.style.display = "block";
 
       fields.forEach((field) => {
         const tr = document.createElement("tr");
@@ -1004,6 +1031,38 @@ const agentCloudToggle = document.getElementById("agent-cloud-toggle");
     agentInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") launchAgent();
     });
+
+
+    const modelBar = document.getElementById("model-bar");
+    const modelBtn = document.getElementById("model-btn");
+    const modelResult = document.getElementById("model-result");
+    const modelCloudToggle = document.getElementById("model-cloud-toggle");
+    const modelModelLabel = document.getElementById("model-model-label");
+
+    modelCloudToggle.addEventListener("change", () => {
+      modelModelLabel.textContent = modelCloudToggle.checked ? "Cloud (externo)" : "Local (privado)";
+    });
+
+    async function suggestModel() {
+      if (currentFields.length === 0) return;
+
+      modelResult.style.display = "block";
+      modelResult.textContent = "🏛 Analizando la estructura y generando el modelo… (unos segundos)";
+
+      try {
+        const res = await fetch("/api/model", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fields: currentFields, use_cloud: modelCloudToggle.checked }),
+        });
+        const data = await res.json();
+        modelResult.textContent = data.recommendation;
+      } catch (error) {
+        modelResult.textContent = "Error al generar el modelo: " + error;
+      }
+    }
+
+    modelBtn.addEventListener("click", suggestModel);
 
 
   </script>
