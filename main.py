@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Body
 from pydantic import BaseModel
 import httpx
 import time
@@ -67,12 +67,12 @@ async def proxy(req: ProxyRequest):
     
 
 @app.post("/api/flatten")
-async def flatten_endpoint(data: dict):
+async def flatten_endpoint(data=Body(...)):
     rows = flatten(data)
     return {"fields": rows, "count": len(rows)}
 
 @app.post("/api/graph")
-async def graph_endpoint(data: dict):
+async def graph_endpoint(data=Body(...)):
     return to_graph(data)
 
 @app.get("/api/history")
