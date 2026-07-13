@@ -1112,6 +1112,24 @@ const agentCloudToggle = document.getElementById("agent-cloud-toggle");
 
     modelBtn.addEventListener("click", suggestModel);
 
+    // ===== Navegación por pestañas =====
+    const tabButtons = document.querySelectorAll(".tab");
+    const views = document.querySelectorAll(".view");
+
+    tabButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const target = button.dataset.tab;   // "explorer" | "ai" | "discovery"
+
+        // Apagar todas las pestañas y todas las vistas
+        tabButtons.forEach((b) => b.classList.remove("active"));
+        views.forEach((v) => v.classList.remove("active"));
+
+        // Encender la pestaña clicada y su vista correspondiente
+        button.classList.add("active");
+        document.getElementById("view-" + target).classList.add("active");
+      });
+    });
+
 
   </script>
 </body>
