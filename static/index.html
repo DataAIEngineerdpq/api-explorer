@@ -399,6 +399,13 @@
   border-bottom-color: #e8a33d;
 }
 
+.view {
+  display: none;
+}
+
+.view.active {
+  display: block;
+}
 
 
     #add-header:hover { border-color: #e8a33d; }
@@ -408,108 +415,152 @@
   <h1>API Explorer DanielDataEngineer</h1>
 
   <nav class="tabs" id="tabs">
-  <button class="tab active" data-tab="explorer">Explorador</button>
-  <button class="tab" data-tab="ai">IA</button>
-  <button class="tab" data-tab="discovery">Descubrimiento</button>
-</nav>
+    <button class="tab active" data-tab="explorer">Explorador</button>
+    <button class="tab" data-tab="ai">IA</button>
+    <button class="tab" data-tab="discovery">Descubrimiento</button>
+  </nav>
 
-  <div class="request-bar">
-    <select id="method">
-      <option value="GET">GET</option>
-      <option value="POST">POST</option>
-      <option value="PUT">PUT</option>
-      <option value="PATCH">PATCH</option>
-      <option value="DELETE">DELETE</option>
-    </select>
+  <!-- ============ VISTA: EXPLORADOR ============ -->
+  <div class="view active" id="view-explorer">
 
-    <input type="text" id="url" placeholder="https://api.github.com/repos/python/cpython">
+    <div class="request-bar">
+      <select id="method">
+        <option value="GET">GET</option>
+        <option value="POST">POST</option>
+        <option value="PUT">PUT</option>
+        <option value="PATCH">PATCH</option>
+        <option value="DELETE">DELETE</option>
+      </select>
+      <input type="text" id="url" placeholder="https://api.github.com/repos/python/cpython">
+      <button id="send">Enviar</button>
+    </div>
 
-    <button id="send">Enviar</button>
+    <div id="headers-section">
+      <h2 style="font-size:14px; color:#8b949e; margin-bottom:8px;">Headers</h2>
+      <div id="headers-list"></div>
+      <button id="add-header">+ Añadir header</button>
+    </div>
+
+    <pre id="response">La respuesta aparecerá aquí…</pre>
+
+    <div id="export-bar" style="display:none">
+      <button id="export-csv">Exportar CSV</button>
+      <button id="export-parquet">Exportar Parquet</button>
+    </div>
+
+    <div id="model-bar" style="display:none; margin-top:12px;">
+      <button id="model-btn">🏛 Sugerir modelo de datos</button>
+      <div class="rag-toggle" style="margin-top:8px;">
+        <span>Modelo IA:</span>
+        <label class="switch">
+          <input type="checkbox" id="model-cloud-toggle">
+          <span class="slider"></span>
+        </label>
+        <span id="model-model-label">Local (privado)</span>
+      </div>
+    </div>
+
+    <div id="model-result" style="display:none;"></div>
+
+    <table id="fields-table" style="display:none">
+      <thead>
+        <tr>
+          <th>Campo</th>
+          <th>Tipo crudo</th>
+          <th>Tipo semántico</th>
+          <th>Valor</th>
+          <th>Acciones sugeridas</th>
+        </tr>
+      </thead>
+      <tbody id="fields-body"></tbody>
+    </table>
+
+    <div id="graph-search" style="display:none">
+      <input type="text" id="search-input" placeholder="Buscar campo o valor…">
+      <button id="search-btn">Buscar / Siguiente</button>
+      <span id="search-count"></span>
+    </div>
+
+    <div id="graph" style="display:none"></div>
+
+  </div>
+  <!-- ============ FIN EXPLORADOR ============ -->
+
+
+  <!-- ============ VISTA: IA ============ -->
+  <div class="view" id="view-ai">
+
+    <div id="semantic-search">
+      <h2 style="font-size:14px; color:#8b949e; margin-bottom:8px;">Búsqueda semántica</h2>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="semantic-input" placeholder="Busca por significado (ej: datos de personas)">
+        <button id="semantic-btn">Buscar</button>
+      </div>
+      <div id="semantic-results"></div>
+    </div>
+
+    <div id="rag-section">
+      <h2 style="font-size:14px; color:#8b949e; margin-bottom:8px;">Pregunta a tus APIs (RAG)</h2>
+      <div class="rag-toggle">
+        <span>Modelo:</span>
+        <label class="switch">
+          <input type="checkbox" id="cloud-toggle">
+          <span class="slider"></span>
+        </label>
+        <span id="model-label">Local (privado)</span>
+      </div>
+      <div id="cloud-warning" style="display:none;">
+        ⚠ Con Cloud, los datos recuperados se envían a un servidor externo.
+      </div>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <input type="text" id="rag-input" placeholder="Ej: ¿Qué APIs tienen datos de personas?">
+        <button id="rag-btn">Preguntar</button>
+      </div>
+      <div id="rag-answer"></div>
+    </div>
+
+    <div id="agent-section">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+        <span style="font-size:16px;">🚀</span>
+        <h2 style="font-size:14px; color:#8b949e; margin:0;">Control de misión — Agente</h2>
+      </div>
+      <div class="rag-toggle">
+        <span>Modelo:</span>
+        <label class="switch">
+          <input type="checkbox" id="agent-cloud-toggle">
+          <span class="slider"></span>
+        </label>
+        <span id="agent-model-label">Local (privado)</span>
+      </div>
+      <div id="agent-cloud-warning" style="display:none;">
+        ⚠ Con Cloud, los datos explorados se envían a un servidor externo.
+      </div>
+      <div style="margin-top:8px;">
+        <input type="password" id="agent-token" placeholder="Token de autenticación (opcional, ej: pk_... para ClickUp)"
+          style="width:100%; background:#1c2128; color:#e6edf3; border:1px solid #3d444d; border-radius:6px; padding:8px 10px; font-family:monospace; font-size:12px; box-sizing:border-box;">
+      </div>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <input type="text" id="agent-input" placeholder="Ej: dime la descripción del repo python/cpython en GitHub">
+        <button id="agent-btn">Lanzar misión</button>
+      </div>
+      <div id="agent-status"></div>
+      <div id="agent-steps"></div>
+      <div id="agent-answer"></div>
+      <div id="agent-detail"></div>
+    </div>
+
+  </div>
+  <!-- ============ FIN IA ============ -->
+
+
+  <!-- ============ VISTA: DESCUBRIMIENTO ============ -->
+  <div class="view" id="view-discovery">
+    <p style="color:#888">Descubrimiento de endpoints — próximamente.</p>
   </div>
 
-  <div id="headers-section">
-    <h2 style="font-size:14px; color:#8b949e; margin-bottom:8px;">Headers</h2>
-    <div id="headers-list"></div>
-    <button id="add-header">+ Añadir header</button>
-  </div>
 
-  <div id="semantic-search">
-    <h2 style="font-size:14px; color:#8b949e; margin-bottom:8px;">Búsqueda semántica</h2>
-    <div style="display:flex; gap:8px;">
-      <input type="text" id="semantic-input" placeholder="Busca por significado (ej: datos de personas)">
-      <button id="semantic-btn">Buscar</button>
-    </div>
-    <div id="semantic-results"></div>
-  </div>
-
-  <div id="rag-section">
-    <h2 style="font-size:14px; color:#8b949e; margin-bottom:8px;">Pregunta a tus APIs (RAG)</h2>
-
-    <div class="rag-toggle">
-      <span>Modelo:</span>
-      <label class="switch">
-        <input type="checkbox" id="cloud-toggle">
-        <span class="slider"></span>
-      </label>
-      <span id="model-label">Local (privado)</span>
-    </div>
-
-    <div id="cloud-warning" style="display:none;">
-      ⚠ Con Cloud, los datos recuperados se envían a un servidor externo.
-    </div>
-
-    <div style="display:flex; gap:8px; margin-top:8px;">
-      <input type="text" id="rag-input" placeholder="Ej: ¿Qué APIs tienen datos de personas?">
-      <button id="rag-btn">Preguntar</button>
-    </div>
-
-    <div id="rag-answer"></div>
-  </div>
-
-  <div id="agent-section">
-    <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
-      <span style="font-size:16px;">🚀</span>
-      <h2 style="font-size:14px; color:#8b949e; margin:0;">Control de misión — Agente</h2>
-    </div>
-
-    <div class="rag-toggle">
-      <span>Modelo:</span>
-      <label class="switch">
-        <input type="checkbox" id="agent-cloud-toggle">
-        <span class="slider"></span>
-      </label>
-      <span id="agent-model-label">Local (privado)</span>
-    </div>
-
-    <div id="agent-cloud-warning" style="display:none;">
-      ⚠ Con Cloud, los datos explorados se envían a un servidor externo.
-    </div>
-
-    <div style="margin-top:8px;">
-      <input type="password" id="agent-token" placeholder="Token de autenticación (opcional, ej: pk_... para ClickUp)"
-        style="width:100%; background:#1c2128; color:#e6edf3; border:1px solid #3d444d; border-radius:6px; padding:8px 10px; font-family:monospace; font-size:12px; box-sizing:border-box;">
-    </div>
-
-    <div style="display:flex; gap:8px; margin-top:8px;">
-      <input type="text" id="agent-input" placeholder="Ej: dime la descripción del repo python/cpython en GitHub">
-      <button id="agent-btn">Lanzar misión</button>
-    </div>
-
-    <div id="agent-status"></div>
-    <div id="agent-steps"></div>
-    <div id="agent-answer"></div>
-    <div id="agent-detail"></div>
-  </div>
-
-
-
- 
-
-
-
-
-
-   <div id="history">
+  <!-- ===== HISTORIAL: franja neutral, fuera de las pestañas ===== -->
+  <div id="history">
     <h2 style="font-size:15px; color:#8b949e;">Historial</h2>
     <table id="history-table">
       <thead>
@@ -525,45 +576,6 @@
       <tbody id="history-body"></tbody>
     </table>
   </div>
-
-  <pre id="response">La respuesta aparecerá aquí…</pre>
-  <div id="export-bar" style="display:none">
-    <button id="export-csv">Exportar CSV</button>
-    <button id="export-parquet">Exportar Parquet</button>
-  </div>
-
-  <div id="model-bar" style="display:none; margin-top:12px;">
-    <button id="model-btn">🏛 Sugerir modelo de datos</button>
-    <div class="rag-toggle" style="margin-top:8px;">
-      <span>Modelo IA:</span>
-      <label class="switch">
-        <input type="checkbox" id="model-cloud-toggle">
-        <span class="slider"></span>
-      </label>
-      <span id="model-model-label">Local (privado)</span>
-    </div>
-  </div>
-
-  <div id="model-result" style="display:none;"></div>
-  <table id="fields-table" style="display:none">
-    <thead>
-      <tr>
-        <th>Campo</th>
-        <th>Tipo crudo</th>
-        <th>Tipo semántico</th>
-        <th>Valor</th>
-        <th>Acciones sugeridas</th>
-      </tr>
-    </thead>
-    <tbody id="fields-body"></tbody>
-  </table>
-
-  <div id="graph-search" style="display:none">
-    <input type="text" id="search-input" placeholder="Buscar campo o valor…">
-    <button id="search-btn">Buscar / Siguiente</button>
-    <span id="search-count"></span>
-  </div>
- <div id="graph" style="display:none"></div>
   <script>
     const sendButton = document.getElementById("send");
     const responseBox = document.getElementById("response");
