@@ -371,11 +371,47 @@
     }
     #model-result h3 { color: #e8a33d; font-size: 14px; margin: 12px 0 6px; }
 
+    .tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #333;
+  margin-bottom: 24px;
+}
+
+.tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #888;
+  padding: 10px 18px;
+  font-size: 15px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab:hover {
+  color: #ccc;
+}
+
+.tab.active {
+  color: #e8a33d;
+  border-bottom-color: #e8a33d;
+}
+
+
+
     #add-header:hover { border-color: #e8a33d; }
   </style>
 </head>
 <body>
   <h1>API Explorer DanielDataEngineer</h1>
+
+  <nav class="tabs" id="tabs">
+  <button class="tab active" data-tab="explorer">Explorador</button>
+  <button class="tab" data-tab="ai">IA</button>
+  <button class="tab" data-tab="discovery">Descubrimiento</button>
+</nav>
 
   <div class="request-bar">
     <select id="method">
