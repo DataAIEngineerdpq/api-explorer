@@ -19,20 +19,9 @@ def get_connection():
 
 
 def init_db():
-    conn = get_connection()
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS requests (
-            id SERIAL PRIMARY KEY,
-            method TEXT NOT NULL,
-            url TEXT NOT NULL,
-            status INTEGER,
-            time_ms REAL,
-            size_bytes INTEGER,
-            created_at TEXT NOT NULL
-        )
-    """)
-    conn.commit()
-    conn.close()
+    """Schema is created by db/init.sql on first container start.
+    Kept as a no-op so existing imports don't break."""
+    pass
 
 
 def save_request(method, url, status, time_ms, size_bytes, source="manual"):
