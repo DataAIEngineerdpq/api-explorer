@@ -639,6 +639,11 @@
               body: JSON.stringify(cuerpo),
             });
             const analisis = await res.json();
+            if (!res.ok) {
+              responseBox.textContent =
+                "Error al analizar la respuesta: " + JSON.stringify(analisis, null, 2);
+              return;
+            }
             renderTable(analisis.fields)
             
             // Pedir y dibujar el grafo

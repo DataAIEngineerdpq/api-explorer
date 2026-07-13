@@ -103,6 +103,50 @@ def flatten(data, prefix=""):
         })
     return rows
 
+ARRAY_INDEX_RE = re.compile(r"\[\d+\]")
+
+
+def canonical_path(path):
+    """tasks[0].status.id -> tasks[].status.id"""
+    return ARRAY_INDEX_RE.sub("[]", path)
+
+
+def to_schema(fields):
+    """Collapse flattened rows into a unique schema.
+
+    Rows coming from flatten() repeat one entry per array item. The LLM needs the
+    structure (unique paths), not the data. This keeps every distinct field and
+    drops only the repetitions.
+    """
+    schema = {}
+
+    for field in fields:
+        key = canonical_path(field["path"])
+
+        if key not in schema:
+            schema[key] = {
+                "path": key,
+                "types": set(),
+                "example": field["value"],
+                "occurrences": 0,
+            }
+
+        entry = schema[key]
+        entry["types"].add(field["semanticType"])
+        entry["occurrences"] += 1
+
+        # Prefer a non-empty example over a null one
+        if entry["example"] in (None, "") and field["value"] not in (None, ""):
+            entry["example"] = field["value"]
+
+    # Turn the type sets into sorted lists so the result is JSON-serialisable
+    result = []
+    for entry in schema.values():
+        entry["types"] = sorted(entry["types"])
+        result.append(entry)
+
+    return result
+
 def to_graph(data):
     nodes = []
     edges = []
@@ -138,8 +182,14 @@ def to_graph(data):
 if __name__ == "__main__":
     import json
     ejemplo = {
-        "name": "cpython",
-        "owner": {"login": "python", "id": 1525981},
-        "topics": ["python", "language"],
+        "tasks": [
+            {"id": 1, "name": "Uno", "due_date": "2026-01-15", "points": 3},
+            {"id": 2, "name": "Dos", "due_date": None, "points": 5},
+            {"id": 3, "name": "Tres", "due_date": "2026-02-20", "points": 8},
+        ]
     }
-    print(json.dumps(to_graph(ejemplo), indent=2, ensure_ascii=False))
+    filas = flatten(ejemplo)
+    esquema = to_schema(filas)
+    print(f"flatten -> {len(filas)} filas")
+    print(f"to_schema -> {len(esquema)} campos\n")
+    print(json.dumps(esquema, indent=2, ensure_ascii=False))

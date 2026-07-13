@@ -1,28 +1,37 @@
 import ollama
-
+from profiler import to_schema
 
 
 def recommend_with_llm(fields, use_cloud=False):
-    # 1. Generar las pistas heurísticas
-    pistas = suggest_model(fields)
+    # 1. Collapse the flattened rows into a unique schema (no truncation,
+    #    only deduplication of repeated array items)
+    schema = to_schema(fields)
 
-    # 2. Preparar la estructura COMPLETA (todos los campos, sin filtrar)
+    # 2. Heuristic hints, computed over the schema (not over every data row)
+    pistas = suggest_model(schema)
+
+    # 3. The full structure: every distinct field, its types, and an example
     estructura_completa = "\n".join(
-        f"- {f['path']} (tipo: {f.get('semanticType', '?')})" for f in fields
+        f"- {f['path']} (tipos: {', '.join(f['types'])}) ej: {f['example']!r}"
+        for f in schema
     )
 
-    # 3. Preparar las pistas como AYUDA adicional
+    # 4. Hints as supporting material
     pistas_texto = "\n".join(
         f"- {h['path']} → sugerencia: {h['role']} ({h['reason']})"
         for h in pistas["hints"]
     )
 
-    # 4. Armar el prompt: estructura completa + pistas
     prompt = f"""Eres un experto en modelado dimensional de datos (data warehousing).
 
 A continuación tienes la ESTRUCTURA COMPLETA de una respuesta de API, y unas PISTAS
 automáticas que pueden ayudarte (pero úsalas solo como apoyo; confía en tu criterio
 sobre la estructura completa).
+
+Los campos que provienen de listas se muestran con la notación `campo[]`, lo que
+significa que el endpoint devuelve múltiples elementos con esa misma estructura.
+Cuando un campo tiene varios tipos (ej. "datetime, null"), significa que puede venir
+vacío.
 
 --- ESTRUCTURA COMPLETA DE LA API ---
 {estructura_completa}
@@ -41,14 +50,19 @@ Responde en dos partes claramente separadas:
 """
 
     model = "gemma4:cloud" if use_cloud else "qwen2.5-coder:7b"
-    respuesta = ollama.chat(model=model, messages=[{"role": "user", "content": prompt}])
+    respuesta = ollama.chat(
+        model=model,
+        messages=[{"role": "user", "content": prompt}],
+        options={"num_ctx": 8192},
+    )
 
     return {
         "recommendation": respuesta["message"]["content"],
         "hints": pistas["hints"],
         "summary": pistas["summary"],
+        "schema_size": len(schema),
+        "rows_size": len(fields),
     }
-
 
 # Palabras que sugieren una MEDIDA (algo cuantificable, va en la tabla de hechos)
 MEASURE_HINTS = {"count", "total", "amount", "price", "cost", "duration",
@@ -63,7 +77,11 @@ def classify_field(field):
     """Clasifica un campo como candidato a medida, clave o dimensión (una pista)."""
     path = field["path"].lower()
     last = path.split(".")[-1]          # el último tramo del path (ej. owner.id -> id)
-    semantic = field.get("semanticType", "")
+
+    # El esquema trae una lista de tipos (un campo puede ser nullable).
+    # Ignoramos "null": no compite con el tipo real, solo indica opcionalidad.
+    types = [t for t in field.get("types", []) if t != "null"]
+    semantic = types[0] if types else ""
 
     # --- ¿Es una CLAVE? ---
     if last == "id" or last.endswith("_id") or semantic == "uuid":
@@ -94,7 +112,7 @@ def suggest_model(fields):
         clasificacion = classify_field(field)
         hints.append({
             "path": field["path"],
-            "type": field.get("semanticType", ""),
+            "type": ", ".join(field.get("types", [])),
             "role": clasificacion["role"],
             "reason": clasificacion["reason"],
         })
@@ -108,15 +126,27 @@ def suggest_model(fields):
 
 
 if __name__ == "__main__":
-    campos_prueba = [
-        {"path": "id", "semanticType": "integer"},
-        {"path": "name", "semanticType": "string"},
-        {"path": "assignees.count", "semanticType": "integer"},
-        {"path": "due_date", "semanticType": "datetime"},
-        {"path": "status", "semanticType": "string"},
-        {"path": "owner.id", "semanticType": "integer"},
-        {"path": "owner.name", "semanticType": "string"},
-    ]
-    resultado = recommend_with_llm(campos_prueba)
+    from profiler import flatten
+
+    ejemplo = {
+        "tasks": [
+            {"id": 1, "name": "Uno", "due_date": "2026-01-15", "points": 3,
+             "assignee": {"id": 10, "username": "dc"}},
+            {"id": 2, "name": "Dos", "due_date": None, "points": 5,
+             "assignee": {"id": 11, "username": "ana"}},
+            {"id": 3, "name": "Tres", "due_date": "2026-02-20", "points": 8,
+             "assignee": {"id": 10, "username": "dc"}},
+        ]
+    }
+
+    filas = flatten(ejemplo)
+    resultado = recommend_with_llm(filas)
+
+    print(f"flatten -> {resultado['rows_size']} filas")
+    print(f"to_schema -> {resultado['schema_size']} campos\n")
+    print("=== PISTAS ===")
+    for h in resultado["hints"]:
+        print(f"  {h['path']:<28} {h['role']:<10} ({h['reason']})")
+    print(f"\nResumen: {resultado['summary']}\n")
     print("=== RECOMENDACIÓN DEL LLM ===")
     print(resultado["recommendation"])
